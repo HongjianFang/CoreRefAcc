@@ -1,0 +1,15 @@
+'trimb' : 20
+'trima' : 230
+'frqmin' : 0.01
+'frqmax' : 0.4
+'rsample' : 1
+'tpratio' : 0.02
+'envolope' : 0
+'timedomain' : 0
+'datatype' : 'raw'
+'mindist' : 25
+'maxdist' : 75
+'bins' : 1.0
+'eqdir' : '../gloabl16y_mtz2'
+'outfilename' : 'pcp_global_16.h5'
+'fwin' : 10
