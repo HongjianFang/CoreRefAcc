@@ -6,11 +6,32 @@
 #
 # Creation Date : 05-07-2019
 #
-# Last Modified : Sun Jul  7 08:57:29 2019
+# Last Modified : Thu Jul 11 22:46:35 2019
 #
 # Created By : Hongjian Fang: hfang@mit.edu 
 #
 #_._._._._._._._._._._._._._._._._._._._._.*/
+
+def autocorr_td(tr,stalign_a,stalign_b,conlen=15):
+        N = tr.stats.npts
+        delta = tr.stats.delta
+        yf = fft(tr.data)
+        ayf = np.abs(yf)
+        myf = np.convolve(ayf, np.ones((conlen,))/conlen, mode='same')
+        yf = yf/myf
+        xx = np.real(ifft(yf))
+        
+        stalign_a = int(stalign_a/delta)
+        stalign_b = int(stalign_b/delta)
+        winlen = stalign_b - stalign_a
+        xxw = xx[stalign_a:stalign_b]
+        acorr = np.correlate(xx,xxw,mode='full')
+        acorr = acorr[winlen:]
+        maxloc = np.argmax(abs(acorr))
+        acorr = np.roll(acorr,-maxloc)
+        
+        tr.data[:len(acorr)] = acorr
+        return tr
 
 def autocorr_fd(tr,conlen=10):
         N = tr.stats.npts
@@ -41,8 +62,14 @@ from obspy.signal.filter import bandpass
 import h5py
 import yaml
 import time
+import sys
 
-with open('parameters.in','r') as fin:
+if len(sys.argv) == 1:
+    parafile = 'parameters.in'
+else:
+    parafile = str(sys.argv[1])
+
+with open(parafile,'r') as fin:
     par = yaml.load(fin)
 
 trimb   = par['trimb']
@@ -55,24 +82,60 @@ tdomain = par['timedomain']
 datatp  = par['datatype']
 mindist = par['mindist']
 maxdist = par['maxdist']
-bins    = par['bins']
 fwin    = par['fwin']
 eqdir   = par['eqdir']
 outfile = par['outfilename']
+comp = par['comp']
 
-pPdP = np.load('./tables/teleP50to600.npy')
-ndep = 551
-ndis = 651
-dep = np.linspace(50,600,ndep)
-dis = np.linspace(30,95,ndis)
-ftelep = interpolate.interp2d(dis, dep, pPdP, kind='linear')
+ndep = par['ndep']
+ndis = par['ndis']
+mindis = par['mindis']
+maxdis = par['maxdis']
+mindep = par['mindep']
+maxdep = par['maxdep']
+phasesl = par['phaselist']
+firstarrtt = par['firstarrtt']
+windowb = par['align_b']
+windowa = par['align_a']
+#phasesl = phasel.split(',')
 
-ndep = 121
-ndis = 101
-dep = np.linspace(0,600,ndep)
-dis = np.linspace(25,75,ndis)
-pPdP = np.load('./tables/PcPdP.npy')
-fpcpdp = interpolate.interp2d(dis, dep, pPdP, kind='linear')
+#ndep = 96
+#ndis = 111
+dep = np.linspace(mindep,maxdep,ndep)
+dis = np.linspace(mindis,maxdis,ndis)
+filetele = './tables/'+firstarrtt
+#filepcp = './tables/'+cmbreftt
+if os.path.isfile(filetele):
+    telep = np.load(filetele)
+#    pcpdp = np.load(filepcp)
+else:
+    print('constructing tt table')
+    from obspy.taup import TauPyModel
+    mod = TauPyModel(model='ak135')
+    telep = np.zeros((ndep,ndis))
+#    pcpdp = np.zeros((ndep,ndis))
+    for ii in range(ndep):
+       for jj in range(ndis):        
+            arr = mod.get_travel_times(source_depth_in_km=dep[ii],distance_in_degree=dis[jj],phase_list=phasesl)
+            #pcpdp[ii,jj] = arr[-1].time-arr[0].time
+            telep[ii,jj] = arr[0].time
+    np.save(filetele,telep)
+ftelep = interpolate.interp2d(dis, dep, telep , kind='linear')
+#fpcpdp = interpolate.interp2d(dis, dep, pcpdp, kind='linear')
+
+#pPdP = np.load('./tables/teleP50to600.npy')
+#ndep = 551
+#ndis = 651
+#dep = np.linspace(50,600,ndep)
+#dis = np.linspace(30,95,ndis)
+#ftelep = interpolate.interp2d(dis, dep, pPdP, kind='linear')
+#
+#ndep = 121
+#ndis = 101
+#dep = np.linspace(0,600,ndep)
+#dis = np.linspace(25,75,ndis)
+#pPdP = np.load('./tables/PcPdP.npy')
+#fpcpdp = interpolate.interp2d(dis, dep, pPdP, kind='linear')
 
 eqs = open(''.join([eqdir,'/EVENTS-INFO/event_list_pickle']))
 
@@ -89,8 +152,12 @@ nevent = len(evelist)
 irissta = pd.read_table('./tables/IRISSTA0319.txt',names=('net','sta','lat','lon'),header=0,delim_whitespace=True,keep_default_na=False)
 
 samplevent = np.arange(nevent)
+if comp == 'BHT' or comp == 'BHR':
+    oricomp = 'BHE'
+else:
+    oricomp = comp
 
-start = time.time()
+start = time.ctime()
 print('starting time:',start)
 for ievent in samplevent:
     ievent1 = ievent
@@ -100,9 +167,11 @@ for ievent in samplevent:
     evlat1 = eqs[evidx1]['latitude']
     evlon1 = eqs[evidx1]['longitude']
     evdep1 = eqs[evidx1]['depth']
+    if evdep1 > 80:
+        continue
     evtime1 = eqs[evidx1]['datetime']
     evmag1 = eqs[evidx1]['magnitude']  
-    stalist1 = glob.glob('/'.join([eqdir,evname,datatp,'*.BHZ']))
+    stalist1 = glob.glob('/'.join([eqdir,evname,datatp,'*.'+oricomp]))
     stalist = [stal.split('/')[-1] for stal in stalist1]
 
     nsta = len(stalist1)
@@ -123,18 +192,38 @@ for ievent in samplevent:
                 if dis1.delta<mindist or dis1.delta>maxdist:
                     continue
 
+                parr = ftelep(dis1.delta,evdep1)[0]
+
                 trace = '/'.join([eqdir,evname,datatp,stalist[ista]])
                 if os.path.getsize(trace) < 1000:
                     continue
                 strm = obspy.read(trace)
+
+                if comp == 'BHR' or comp == 'BHT':
+                    tracen = trace.split('.')[:-1]
+                    tracen = '.'.join(tracen+['BHN'])
+                    if not os.path.isfile(tracen) or os.path.getsize(tracen) < 1000:
+                      continue
+                    strm += obspy.read(tracen)
+                    strm.resample(rsample)
+                    #strm.trim(evtime1+parr-trimb,evtime1+parr+trima,pad=True,fill_value=0)
+                    strm.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)
+                    #print(strm)
+                    strm.rotate('NE->RT',back_azimuth=dis1.baz)
+                    tracet = strm.select(channel=comp)
+                    strm = tracet
+#                    strm.remove(tracet[0])
+                else:
+                    strm.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)
+                    strm.resample(rsample)
+
                 tr = strm[0]
-                if tr.stats.npts<100:
-                    continue
-                tr.resample(rsample)
+                #if tr.stats.npts<100:
+                #    continue
+                #tr.resample(rsample)
                 
-                parr = ftelep(dis1.delta,evdep1)[0]
                 tr.stats.distance = dis1.delta
-                tr.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)                
+                #tr.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)                
                 
                 tr.detrend()
                 tr.taper(tpratio)
@@ -145,14 +234,18 @@ for ievent in samplevent:
                 npts = tr.stats.npts
                 tr.normalize() 
                 
-                tr = autocorr_fd(tr,fwin)
+                if tdomain == 1:
+                    tr = autocorr_td(tr,windowb,windowa,fwin)
+                else:
+                    tr = autocorr_fd(tr,fwin)
 
                 dist = dis1.delta
                 if np.isnan(tr.data).any():
                     continue
 
                 evtag = '/'.join([stanet,staname,location+'_'+evname.split('.')[0]])
-                ds.create_dataset('/'+evtag,(npts,),data=tr.data)
+#                print(npts,len(tr.data))
+                ds.create_dataset('/'+evtag,(npts,),data=tr.data[:npts])
                 ds[evtag].attrs['evid'] = evname+'.'+tr.id
                 ds[evtag].attrs['evlat'] = evlat1
                 ds[evtag].attrs['evlon'] = evlon1
@@ -161,6 +254,6 @@ for ievent in samplevent:
                 ds[evtag].attrs['stlon'] = stlon
                 ds[evtag].attrs['dist'] = dis1.delta
                 
-print 'finishing',time.time()
+print 'finishing',time.ctime()
 ds.close()
 

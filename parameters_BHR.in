@@ -14,9 +14,9 @@
 #'eqdir' : '../gloabl16y_mtz2'
 #'outfilename' : 'pcp_global_16.h5'
 'eqdir' : '../gloabl17y_mtz_Horizontal'
-'outfilename' : 'ScS_global_17_BHT_td.h5'
+'outfilename' : 'ScS_global_17_BHR_td.h5'
 'fwin' : 10
-'comp' : 'BHT'
+'comp' : 'BHR'
 
 # for constructing tt table
 'ndis' : 111
