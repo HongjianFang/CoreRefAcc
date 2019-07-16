@@ -6,7 +6,7 @@
 #
 # Creation Date : 05-07-2019
 #
-# Last Modified : Thu Jul 11 22:46:35 2019
+# Last Modified : Sun Jul 14 09:47:11 2019
 #
 # Created By : Hongjian Fang: hfang@mit.edu 
 #
@@ -70,7 +70,7 @@ else:
     parafile = str(sys.argv[1])
 
 with open(parafile,'r') as fin:
-    par = yaml.load(fin)
+    par = yaml.load(fin,Loader=yaml.FullLoader)
 
 trimb   = par['trimb']
 trima   = par['trima']
@@ -137,7 +137,7 @@ ftelep = interpolate.interp2d(dis, dep, telep , kind='linear')
 #pPdP = np.load('./tables/PcPdP.npy')
 #fpcpdp = interpolate.interp2d(dis, dep, pPdP, kind='linear')
 
-eqs = open(''.join([eqdir,'/EVENTS-INFO/event_list_pickle']))
+eqs = open(''.join([eqdir,'/EVENTS-INFO/event_list_pickle']),'rb')
 
 eqs = pickle.load(eqs)
 evid = []
@@ -149,7 +149,7 @@ ds = h5py.File(outfile,'w')
 
 evelist = glob.glob(eqdir+'/*.a')
 nevent = len(evelist) 
-irissta = pd.read_table('./tables/IRISSTA0319.txt',names=('net','sta','lat','lon'),header=0,delim_whitespace=True,keep_default_na=False)
+irissta = pd.read_csv('./tables/IRISSTA0319.txt',names=('net','sta','lat','lon'),header=0,delim_whitespace=True,keep_default_na=False)
 
 samplevent = np.arange(nevent)
 if comp == 'BHT' or comp == 'BHR':
@@ -176,8 +176,8 @@ for ievent in samplevent:
 
     nsta = len(stalist1)
     stapos = np.zeros((nsta,2))
-    print ('the',ievent,'th event pairs')
-    print ('evinfo for eq 1:',evname,evmag1,evlat1,evlon1,evdep1,nsta)
+    print ('the',ievent,'th event of all:',nevent)
+    print ('%s %s %4.1f  %7.2f %7.2f %7.2f %d\n' % ('evinfo :',evname,evmag1,evlat1,evlon1,evdep1,nsta))
 
     for ista in range(nsta):
                 stanet = stalist[ista].split('.')[0]
@@ -195,14 +195,14 @@ for ievent in samplevent:
                 parr = ftelep(dis1.delta,evdep1)[0]
 
                 trace = '/'.join([eqdir,evname,datatp,stalist[ista]])
-                if os.path.getsize(trace) < 1000:
+                if os.path.getsize(trace) < 10000:
                     continue
                 strm = obspy.read(trace)
 
                 if comp == 'BHR' or comp == 'BHT':
                     tracen = trace.split('.')[:-1]
                     tracen = '.'.join(tracen+['BHN'])
-                    if not os.path.isfile(tracen) or os.path.getsize(tracen) < 1000:
+                    if not os.path.isfile(tracen) or os.path.getsize(tracen) < 10000:
                       continue
                     strm += obspy.read(tracen)
                     strm.resample(rsample)
@@ -254,6 +254,6 @@ for ievent in samplevent:
                 ds[evtag].attrs['stlon'] = stlon
                 ds[evtag].attrs['dist'] = dis1.delta
                 
-print 'finishing',time.ctime()
+print ('finishing',time.ctime())
 ds.close()
 

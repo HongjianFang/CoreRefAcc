@@ -6,11 +6,13 @@
 'tpratio' : 0.01
 'envolope' : 0
 'timedomain' : 0
+'align_b' : 10
+'align_a' : 30
 'datatype' : 'raw'
 'mindist' : 25
 'maxdist' : 75
-'eqdir' : '../gloabl17y_mtz'
-'outfilename' : 'pcp_global_17_rerun.h5'
+'eqdir' : '../cmb1011'
+'outfilename' : 'pcp_cmb.h5'
 'fwin' : 10
 'comp' : 'BHZ'
 
