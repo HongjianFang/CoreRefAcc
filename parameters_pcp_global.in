@@ -8,10 +8,10 @@
 'timedomain' : 0
 'align_b' : 10
 'align_a' : 30
-'datatype' : 'raw'
+'datatype' : 'processed'
 'mindist' : 25
 'maxdist' : 75
-'eqdir' : '../cmb1011'
+'eqdir' : '../../data/processed'
 'outfilename' : 'pcp_cmb.h5'
 'fwin' : 10
 'comp' : 'BHZ'

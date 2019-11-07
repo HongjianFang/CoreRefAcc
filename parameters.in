@@ -1,4 +1,4 @@
-'trimb' : 20
+'trimb' : 30
 'trima' : 450
 'frqmin' : 0.01
 'frqmax' : 0.4
@@ -8,11 +8,11 @@
 'timedomain' : 0
 'align_b' : 10
 'align_a' : 30
-'datatype' : 'raw'
+'datatype' : 'processed'
 'mindist' : 25
 'maxdist' : 75
-'eqdir' : '../llsvp1516'
-'outfilename' : 'ScS_llsvp_BHR_fd.h5'
+'eqdir' : '../../data/processed'
+'outfilename' : 'ScS_BHR_cmb.h5'
 'fwin' : 10
 'comp' : 'BHR'
 

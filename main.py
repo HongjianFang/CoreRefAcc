@@ -6,46 +6,46 @@
 #
 # Creation Date : 05-07-2019
 #
-# Last Modified : Sun Jul 14 09:47:11 2019
+# Last Modified : Thu Jul 18 18:00:40 2019
 #
 # Created By : Hongjian Fang: hfang@mit.edu 
 #
 #_._._._._._._._._._._._._._._._._._._._._.*/
 
-def autocorr_td(tr,stalign_a,stalign_b,conlen=15):
-        N = tr.stats.npts
-        delta = tr.stats.delta
-        yf = fft(tr.data)
-        ayf = np.abs(yf)
-        myf = np.convolve(ayf, np.ones((conlen,))/conlen, mode='same')
-        yf = yf/myf
-        xx = np.real(ifft(yf))
-        
-        stalign_a = int(stalign_a/delta)
-        stalign_b = int(stalign_b/delta)
-        winlen = stalign_b - stalign_a
-        xxw = xx[stalign_a:stalign_b]
-        acorr = np.correlate(xx,xxw,mode='full')
-        acorr = acorr[winlen:]
-        maxloc = np.argmax(abs(acorr))
-        acorr = np.roll(acorr,-maxloc)
-        
-        tr.data[:len(acorr)] = acorr
-        return tr
-
-def autocorr_fd(tr,conlen=10):
-        N = tr.stats.npts
-        delta = tr.stats.delta
-        data = np.zeros(2*N,)
-        data[:N] = tr.data
-        yf = fft(data)
-        ayf = np.abs(yf)
-        myf = np.convolve(ayf, np.ones((conlen,))/conlen, mode='same')
-        yf = yf/myf
-        myf = yf*np.conj(yf)
-        xx = np.real(ifft(myf))
-        tr.data = xx[:N]
-        return tr
+#def autocorr_td(tr,stalign_a,stalign_b,conlen=15):
+#        N = tr.stats.npts
+#        delta = tr.stats.delta
+#        yf = fft(tr.data)
+#        ayf = np.abs(yf)
+#        myf = np.convolve(ayf, np.ones((conlen,))/conlen, mode='same')
+#        yf = yf/myf
+#        xx = np.real(ifft(yf))
+#        
+#        stalign_a = int(stalign_a/delta)
+#        stalign_b = int(stalign_b/delta)
+#        winlen = stalign_b - stalign_a
+#        xxw = xx[stalign_a:stalign_b]
+#        acorr = np.correlate(xx,xxw,mode='full')
+#        acorr = acorr[winlen:]
+#        maxloc = np.argmax(abs(acorr))
+#        acorr = np.roll(acorr,-maxloc)
+#        
+#        tr.data[:len(acorr)] = acorr
+#        return tr
+#
+#def autocorr_fd(tr,conlen=10):
+#        N = tr.stats.npts
+#        delta = tr.stats.delta
+#        data = np.zeros(2*N,)
+#        data[:N] = tr.data
+#        yf = fft(data)
+#        ayf = np.abs(yf)
+#        myf = np.convolve(ayf, np.ones((conlen,))/conlen, mode='same')
+#        yf = yf/myf
+#        myf = yf*np.conj(yf)
+#        xx = np.real(ifft(myf))
+#        tr.data = xx[:N]
+#        return tr
 
 
 from scipy import interpolate
@@ -55,9 +55,10 @@ import numpy as np
 import obspy
 import distaz
 import os
-from scipy.fftpack import fft,ifft
+#from scipy.fftpack import fft,ifft
 import glob
 import pandas as pd
+import autocorr
 from obspy.signal.filter import bandpass
 import h5py
 import yaml
@@ -70,7 +71,10 @@ else:
     parafile = str(sys.argv[1])
 
 with open(parafile,'r') as fin:
-    par = yaml.load(fin,Loader=yaml.FullLoader)
+    # py3
+    #par = yaml.load(fin,Loader=yaml.FullLoader)
+    # py2
+    par = yaml.load(fin)
 
 trimb   = par['trimb']
 trima   = par['trima']
@@ -199,21 +203,27 @@ for ievent in samplevent:
                     continue
                 strm = obspy.read(trace)
 
-                if comp == 'BHR' or comp == 'BHT':
+                #if comp == 'BHR' or comp == 'BHT':
+                if comp in ['BHR','BHT']:
                     tracen = trace.split('.')[:-1]
                     tracen = '.'.join(tracen+['BHN'])
                     if not os.path.isfile(tracen) or os.path.getsize(tracen) < 10000:
                       continue
+#                    print('begin...',ista)
                     strm += obspy.read(tracen)
-                    strm.resample(rsample)
+                    strm.merge()
                     #strm.trim(evtime1+parr-trimb,evtime1+parr+trima,pad=True,fill_value=0)
                     strm.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)
+                    strm.resample(rsample)
                     #print(strm)
                     strm.rotate('NE->RT',back_azimuth=dis1.baz)
                     tracet = strm.select(channel=comp)
+#                    print('finish...')
                     strm = tracet
+#                    print('finish...sampling')
 #                    strm.remove(tracet[0])
                 else:
+                    strm.merge()
                     strm.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)
                     strm.resample(rsample)
 
@@ -228,16 +238,16 @@ for ievent in samplevent:
                 tr.detrend()
                 tr.taper(tpratio)
                 tr.data = bandpass(tr.data,frqmin,frqmax,tr.stats.sampling_rate,2,True)
-                tr.taper(tpratio)
+                #tr.taper(tpratio)
                 tr.trim(evtime1+parr-trimb,evtime1+parr+trima)
                 tr.stats.starttime = 0
                 npts = tr.stats.npts
                 tr.normalize() 
                 
                 if tdomain == 1:
-                    tr = autocorr_td(tr,windowb,windowa,fwin)
+                    tr = autocorr.autocorr_td(tr,windowb,windowa,fwin)
                 else:
-                    tr = autocorr_fd(tr,fwin)
+                    tr = autocorr.autocorr_fd(tr,fwin)
 
                 dist = dis1.delta
                 if np.isnan(tr.data).any():
