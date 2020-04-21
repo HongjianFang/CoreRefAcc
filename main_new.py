@@ -6,12 +6,13 @@
 #
 # Creation Date : 05-07-2019
 #
-# Last Modified : Mon Apr 20 16:29:09 2020
+# Last Modified : Tue Apr 21 09:49:30 2020
 #
 # Created By : Hongjian Fang: hfang@mit.edu 
 #
 #_._._._._._._._._._._._._._._._._._._._._.*/
 
+#<<<<<<< HEAD:main_new.py
 def autocorr_td(tr,stalign_a,stalign_b,conlen=15):
         N = tr.stats.npts
         delta = tr.stats.delta
@@ -49,7 +50,6 @@ def autocorr_fd(tr,conlen=10):
         tr.data = xx[:N]
         return tr
 
-
 from scipy import interpolate
 import numpy as np
 import pickle
@@ -57,9 +57,10 @@ import numpy as np
 import obspy
 import distaz
 import os
-from scipy.fftpack import fft,ifft
+#from scipy.fftpack import fft,ifft
 import glob
 import pandas as pd
+import autocorr
 from obspy.signal.filter import bandpass
 import h5py
 import yaml
@@ -72,8 +73,14 @@ else:
     parafile = str(sys.argv[1])
 
 with open(parafile,'r') as fin:
+    #<<<<<<< HEAD:main_new.py
     #par = yaml.load(fin,Loader=yaml.FullLoader)
-    par = yaml.load(fin)
+#=======
+    # py3
+    #par = yaml.load(fin,Loader=yaml.FullLoader)
+    # py2
+#>>>>>>> 8915670f06c8ef3611fd0d088d977e4b490d1a9b:main.py
+#    par = yaml.load(fin)
 
 trimb   = par['trimb']
 trima   = par['trima']
@@ -207,21 +214,27 @@ for ievent in samplevent:
                     continue
                 strm = obspy.read(trace)
 
-                if comp == 'BHR' or comp == 'BHT':
+                #if comp == 'BHR' or comp == 'BHT':
+                if comp in ['BHR','BHT']:
                     tracen = trace.split('.')[:-1]
                     tracen = '.'.join(tracen+['BHN'])
                     if not os.path.isfile(tracen) or os.path.getsize(tracen) < 10000:
                       continue
+#                    print('begin...',ista)
                     strm += obspy.read(tracen)
-                    strm.resample(rsample)
+                    strm.merge()
                     #strm.trim(evtime1+parr-trimb,evtime1+parr+trima,pad=True,fill_value=0)
                     strm.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)
+                    strm.resample(rsample)
                     #print(strm)
                     strm.rotate('NE->RT',back_azimuth=dis1.baz)
                     tracet = strm.select(channel=comp)
+#                    print('finish...')
                     strm = tracet
+#                    print('finish...sampling')
 #                    strm.remove(tracet[0])
                 else:
+                    strm.merge()
                     strm.trim(evtime1+parr-trimb-50,evtime1+parr+trima+50,pad=True,fill_value=0)
                     strm.resample(rsample)
 
@@ -236,17 +249,21 @@ for ievent in samplevent:
                 tr.detrend()
                 tr.taper(tpratio)
                 tr.data = bandpass(tr.data,frqmin,frqmax,tr.stats.sampling_rate,2,True)
-                tr.taper(tpratio)
+                #tr.taper(tpratio)
                 tr.trim(evtime1+parr-trimb,evtime1+parr+trima)
                 tr.stats.starttime = 0
                 npts = tr.stats.npts
                 tr.normalize() 
                 
                 if tdomain == 1:
+                    #<<<<<<< HEAD:main_new.py
                     #tr = autocorr_td(tr,windowb,windowa,fwin)
                     corr = autocorr_td(tr,windowb,windowa,fwin)
+#=======
+#                    tr = autocorr.autocorr_td(tr,windowb,windowa,fwin)
+#>>>>>>> 8915670f06c8ef3611fd0d088d977e4b490d1a9b:main.py
                 else:
-                    tr = autocorr_fd(tr,fwin)
+                    tr = autocorr.autocorr_fd(tr,fwin)
 
                 dist = dis1.delta
                 #if np.isnan(tr.data).any():
