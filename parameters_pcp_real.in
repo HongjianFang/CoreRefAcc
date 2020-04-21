@@ -1,21 +1,23 @@
 'trimb' : 20
-'trima' : 450
+'trima' : 230
 'frqmin' : 0.01
 'frqmax' : 0.4
 'rsample' : 1
-'tpratio' : 0.01
+'tpratio' : 0.02
 'envolope' : 0
-'timedomain' : 0
+'timedomain' : 1
 'align_b' : 10
 'align_a' : 30
 'datatype' : 'raw'
+#'datatype' : 'syngine_ak135f_1s'
 'mindist' : 25
 'maxdist' : 75
-#'outfilename' : 'pcp_global_16.h5'
-'eqdir' : '../../data/cmb11'
-'outfilename' : 'ScS_global_BHT_fd.h5'
+'bins' : 1.0
+#'eqdir' : '../gloabl17y_mtz'
+'eqdir' : '../../Pauto/gloabl15y_mtz'
+'outfilename' : 'pcp_global_real15.h5'
 'fwin' : 10
-'comp' : 'BHT'
+'comp' : 'BHZ'
 
 # for constructing tt table
 'ndis' : 111
@@ -24,6 +26,5 @@
 'maxdis' : 80
 'mindep' : 5
 'maxdep' : 100
-'cmbreftt' : 'ScSdS5to80.npy'
-'firstarrtt' : 'teleS5to80.npy'
-'phaselist' : 'S'
+'firstarrtt' : 'teleP5to80.npy'
+'phaselist' : 'P'

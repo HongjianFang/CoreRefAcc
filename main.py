@@ -6,7 +6,7 @@
 #
 # Creation Date : 05-07-2019
 #
-# Last Modified : Sun Jul 14 09:47:11 2019
+# Last Modified : Mon Apr 20 16:29:09 2020
 #
 # Created By : Hongjian Fang: hfang@mit.edu 
 #
@@ -18,7 +18,7 @@ def autocorr_td(tr,stalign_a,stalign_b,conlen=15):
         yf = fft(tr.data)
         ayf = np.abs(yf)
         myf = np.convolve(ayf, np.ones((conlen,))/conlen, mode='same')
-        yf = yf/myf
+        yf = yf/(myf+1.0e-10)
         xx = np.real(ifft(yf))
         
         stalign_a = int(stalign_a/delta)
@@ -26,12 +26,14 @@ def autocorr_td(tr,stalign_a,stalign_b,conlen=15):
         winlen = stalign_b - stalign_a
         xxw = xx[stalign_a:stalign_b]
         acorr = np.correlate(xx,xxw,mode='full')
-        acorr = acorr[winlen:]
-        maxloc = np.argmax(abs(acorr))
-        acorr = np.roll(acorr,-maxloc)
+        #acorr = acorr[winlen:]
+#       # maxloc = np.argmax(abs(acorr))
+        #maxloc = stalign_a
+        #acorr = np.roll(acorr,-maxloc)
         
-        tr.data[:len(acorr)] = acorr
-        return tr
+#        tr.data[:len(acorr)] = acorr
+#        return tr
+        return acorr
 
 def autocorr_fd(tr,conlen=10):
         N = tr.stats.npts
@@ -41,7 +43,7 @@ def autocorr_fd(tr,conlen=10):
         yf = fft(data)
         ayf = np.abs(yf)
         myf = np.convolve(ayf, np.ones((conlen,))/conlen, mode='same')
-        yf = yf/myf
+        yf = yf/(myf+1.0e-10)
         myf = yf*np.conj(yf)
         xx = np.real(ifft(myf))
         tr.data = xx[:N]
@@ -70,7 +72,8 @@ else:
     parafile = str(sys.argv[1])
 
 with open(parafile,'r') as fin:
-    par = yaml.load(fin,Loader=yaml.FullLoader)
+    #par = yaml.load(fin,Loader=yaml.FullLoader)
+    par = yaml.load(fin)
 
 trimb   = par['trimb']
 trima   = par['trima']
@@ -151,7 +154,7 @@ evelist = glob.glob(eqdir+'/*.a')
 nevent = len(evelist) 
 irissta = pd.read_csv('./tables/IRISSTA0319.txt',names=('net','sta','lat','lon'),header=0,delim_whitespace=True,keep_default_na=False)
 
-samplevent = np.arange(nevent)
+samplevent = np.arange(0,nevent)
 if comp == 'BHT' or comp == 'BHR':
     oricomp = 'BHE'
 else:
@@ -173,6 +176,9 @@ for ievent in samplevent:
     evmag1 = eqs[evidx1]['magnitude']  
     stalist1 = glob.glob('/'.join([eqdir,evname,datatp,'*.'+oricomp]))
     stalist = [stal.split('/')[-1] for stal in stalist1]
+#    irissta = pd.read_csv('/'.join([eqdir,evname,'info','station_event']),header=None,names=\
+#              ('net','sta','loc','channel','lat','lon','ele','tmp1','datasrc','startt',\
+#              'evlat','evlon','evdep','mg','tmp2','tmp3','tmp4','temp5'),keep_default_na=False)
 
     nsta = len(stalist1)
     stapos = np.zeros((nsta,2))
@@ -184,6 +190,8 @@ for ievent in samplevent:
                 staname = stalist[ista].split('.')[1]
                 location = stalist[ista].split('.')[2]
                 stasub = irissta[(irissta['net']==stanet) & (irissta['sta']==staname)]
+                if len(stasub)<1:
+                    continue
                 stlat = stasub.iloc[0]['lat']
                 stlon = stasub.iloc[0]['lon']
                 
@@ -235,17 +243,22 @@ for ievent in samplevent:
                 tr.normalize() 
                 
                 if tdomain == 1:
-                    tr = autocorr_td(tr,windowb,windowa,fwin)
+                    #tr = autocorr_td(tr,windowb,windowa,fwin)
+                    corr = autocorr_td(tr,windowb,windowa,fwin)
                 else:
                     tr = autocorr_fd(tr,fwin)
 
                 dist = dis1.delta
-                if np.isnan(tr.data).any():
+                #if np.isnan(tr.data).any():
+                if np.isnan(corr).any():
                     continue
 
                 evtag = '/'.join([stanet,staname,location+'_'+evname.split('.')[0]])
 #                print(npts,len(tr.data))
-                ds.create_dataset('/'+evtag,(npts,),data=tr.data[:npts])
+                #ds.create_dataset('/'+evtag,(npts,),data=tr.data[:npts])
+                npts = len(corr)
+                #ds.create_dataset('/'+evtag,(npts,),data=tr.data[:npts])
+                ds.create_dataset('/'+evtag,(npts,),data=corr)
                 ds[evtag].attrs['evid'] = evname+'.'+tr.id
                 ds[evtag].attrs['evlat'] = evlat1
                 ds[evtag].attrs['evlon'] = evlon1
