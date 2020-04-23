@@ -6,7 +6,7 @@
 #
 # Creation Date : 05-07-2019
 #
-# Last Modified : Wed 22 Apr 2020 11:18:18 AM EDT
+# Last Modified : Wed 22 Apr 2020 04:45:58 PM EDT
 #
 # Created By : Hongjian Fang: hfang@mit.edu 
 #
@@ -50,132 +50,11 @@ def autocorr_fd(tr,conlen=10):
         tr.data = xx[:N]
         return tr
 
-from scipy import interpolate
-import numpy as np
-import pickle
-import numpy as np
-import obspy
-import distaz
-import os
-from scipy.fftpack import fft,ifft
-import glob
-import pandas as pd
-import autocorr
-from obspy.signal.filter import bandpass
-import h5py
-import yaml
-import time
-import sys
-
-if len(sys.argv) == 1:
-    parafile = 'parameters.in'
-else:
-    parafile = str(sys.argv[1])
-
-with open(parafile,'r') as fin:
-    par = yaml.load(fin)
-    #<<<<<<< HEAD:main_new.py
-    #par = yaml.load(fin,Loader=yaml.FullLoader)
-#=======
-    # py3
-    #par = yaml.load(fin,Loader=yaml.FullLoader)
-    # py2
-#>>>>>>> 8915670f06c8ef3611fd0d088d977e4b490d1a9b:main.py
-#    par = yaml.load(fin)
-
-trimb   = par['trimb']
-trima   = par['trima']
-frqmin  = par['frqmin']
-frqmax  = par['frqmax']
-rsample = par['rsample']
-tpratio = par['tpratio']
-tdomain = par['timedomain']
-datatp  = par['datatype']
-mindist = par['mindist']
-maxdist = par['maxdist']
-fwin    = par['fwin']
-eqdir   = par['eqdir']
-outfile = par['outfilename']
-comp = par['comp']
-
-ndep = par['ndep']
-ndis = par['ndis']
-mindis = par['mindis']
-maxdis = par['maxdis']
-mindep = par['mindep']
-maxdep = par['maxdep']
-phasesl = par['phaselist']
-firstarrtt = par['firstarrtt']
-windowb = par['align_b']
-windowa = par['align_a']
-sig_b = par['sig_b']
-sig_a = par['sig_a']
-noise_b = par['noise_b']
-noise_a = par['noise_a']
-#phasesl = phasel.split(',')
-
-#ndep = 96
-#ndis = 111
-dep = np.linspace(mindep,maxdep,ndep)
-dis = np.linspace(mindis,maxdis,ndis)
-filetele = './tables/'+firstarrtt
-#filepcp = './tables/'+cmbreftt
-if os.path.isfile(filetele):
-    telep = np.load(filetele)
-#    pcpdp = np.load(filepcp)
-else:
-    print('constructing tt table')
-    from obspy.taup import TauPyModel
-    mod = TauPyModel(model='ak135')
-    telep = np.zeros((ndep,ndis))
-#    pcpdp = np.zeros((ndep,ndis))
-    for ii in range(ndep):
-       for jj in range(ndis):        
-            arr = mod.get_travel_times(source_depth_in_km=dep[ii],distance_in_degree=dis[jj],phase_list=phasesl)
-            #pcpdp[ii,jj] = arr[-1].time-arr[0].time
-            telep[ii,jj] = arr[0].time
-    np.save(filetele,telep)
-ftelep = interpolate.interp2d(dis, dep, telep , kind='linear')
-#fpcpdp = interpolate.interp2d(dis, dep, pcpdp, kind='linear')
-
-#pPdP = np.load('./tables/teleP50to600.npy')
-#ndep = 551
-#ndis = 651
-#dep = np.linspace(50,600,ndep)
-#dis = np.linspace(30,95,ndis)
-#ftelep = interpolate.interp2d(dis, dep, pPdP, kind='linear')
-#
-#ndep = 121
-#ndis = 101
-#dep = np.linspace(0,600,ndep)
-#dis = np.linspace(25,75,ndis)
-#pPdP = np.load('./tables/PcPdP.npy')
-#fpcpdp = interpolate.interp2d(dis, dep, pPdP, kind='linear')
-
-eqs = open(''.join([eqdir,'/EVENTS-INFO/event_list_pickle']),'rb')
-
-eqs = pickle.load(eqs)
-evid = []
-for ii in eqs:
-    evid.append(ii['event_id'])
-    
-print ('begin stacking for each station')
-ds = h5py.File(outfile,'w')
-
-evelist = glob.glob(eqdir+'/*.a')
-nevent = len(evelist) 
-#irissta = pd.read_csv('./tables/IRISSTA0319.txt',names=('net','sta','lat','lon'),header=0,delim_whitespace=True,keep_default_na=False)
-
-samplevent = np.arange(0,nevent)
-if comp == 'BHT' or comp == 'BHR':
-    oricomp = 'BHE'
-else:
-    oricomp = comp
-
-start = time.ctime()
-print('starting time:',start)
-for ievent in samplevent:
-    ievent1 = ievent
+def process_event(ievent1):
+    if ievent1>=nevent:
+        return 0 
+    ds = h5py.File(tempdata+'/'+str(ievent1)+'.h5','w')
+#    ievent1 = ievent
     evname = evelist[ievent1].split('/')[-1]
 
     evidx1 = evid.index(evname)
@@ -183,7 +62,7 @@ for ievent in samplevent:
     evlon1 = eqs[evidx1]['longitude']
     evdep1 = eqs[evidx1]['depth']
     if evdep1 > 80:
-        continue
+        return 0
     evtime1 = eqs[evidx1]['datetime']
     evmag1 = eqs[evidx1]['magnitude']  
     stalist1 = glob.glob('/'.join([eqdir,evname,datatp,'*.'+oricomp]))
@@ -300,6 +179,146 @@ for ievent in samplevent:
                 ds[evtag].attrs['stlon'] = stlon
                 ds[evtag].attrs['dist'] = dis1.delta
                 
-print ('finishing',time.ctime())
-ds.close()
+    ds.close()
+    return 0
 
+
+
+from scipy import interpolate
+import numpy as np
+import pickle
+import numpy as np
+import obspy
+import distaz
+import os
+from scipy.fftpack import fft,ifft
+import glob
+import pandas as pd
+import autocorr
+from obspy.signal.filter import bandpass
+import h5py
+import yaml
+import time
+import sys
+
+from mpi4py import MPI
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+
+if len(sys.argv) == 1:
+    parafile = 'parameters.in'
+else:
+    parafile = str(sys.argv[1])
+
+with open(parafile,'r') as fin:
+    par = yaml.load(fin)
+    #<<<<<<< HEAD:main_new.py
+    #par = yaml.load(fin,Loader=yaml.FullLoader)
+#=======
+    # py3
+    #par = yaml.load(fin,Loader=yaml.FullLoader)
+    # py2
+#>>>>>>> 8915670f06c8ef3611fd0d088d977e4b490d1a9b:main.py
+#    par = yaml.load(fin)
+
+trimb   = par['trimb']
+trima   = par['trima']
+frqmin  = par['frqmin']
+frqmax  = par['frqmax']
+rsample = par['rsample']
+tpratio = par['tpratio']
+tdomain = par['timedomain']
+datatp  = par['datatype']
+mindist = par['mindist']
+maxdist = par['maxdist']
+fwin    = par['fwin']
+eqdir   = par['eqdir']
+outfile = par['outfilename']
+comp = par['comp']
+
+ndep = par['ndep']
+ndis = par['ndis']
+mindis = par['mindis']
+maxdis = par['maxdis']
+mindep = par['mindep']
+maxdep = par['maxdep']
+phasesl = par['phaselist']
+firstarrtt = par['firstarrtt']
+windowb = par['align_b']
+windowa = par['align_a']
+sig_b = par['sig_b']
+sig_a = par['sig_a']
+noise_b = par['noise_b']
+noise_a = par['noise_a']
+ncore = par['ncore']
+tempdata = par['tempdata']
+#phasesl = phasel.split(',')
+
+#ndep = 96
+#ndis = 111
+dep = np.linspace(mindep,maxdep,ndep)
+dis = np.linspace(mindis,maxdis,ndis)
+filetele = './tables/'+firstarrtt
+#filepcp = './tables/'+cmbreftt
+if os.path.isfile(filetele):
+    telep = np.load(filetele)
+#    pcpdp = np.load(filepcp)
+else:
+    print('constructing tt table')
+    from obspy.taup import TauPyModel
+    mod = TauPyModel(model='ak135')
+    telep = np.zeros((ndep,ndis))
+#    pcpdp = np.zeros((ndep,ndis))
+    for ii in range(ndep):
+       for jj in range(ndis):        
+            arr = mod.get_travel_times(source_depth_in_km=dep[ii],distance_in_degree=dis[jj],phase_list=phasesl)
+            #pcpdp[ii,jj] = arr[-1].time-arr[0].time
+            telep[ii,jj] = arr[0].time
+    np.save(filetele,telep)
+ftelep = interpolate.interp2d(dis, dep, telep , kind='linear')
+#fpcpdp = interpolate.interp2d(dis, dep, pcpdp, kind='linear')
+
+#pPdP = np.load('./tables/teleP50to600.npy')
+#ndep = 551
+#ndis = 651
+#dep = np.linspace(50,600,ndep)
+#dis = np.linspace(30,95,ndis)
+#ftelep = interpolate.interp2d(dis, dep, pPdP, kind='linear')
+#
+#ndep = 121
+#ndis = 101
+#dep = np.linspace(0,600,ndep)
+#dis = np.linspace(25,75,ndis)
+#pPdP = np.load('./tables/PcPdP.npy')
+#fpcpdp = interpolate.interp2d(dis, dep, pPdP, kind='linear')
+
+eqs = open(''.join([eqdir,'/EVENTS-INFO/event_list_pickle']),'rb')
+eqs = pickle.load(eqs)
+
+evid = []
+for ii in eqs:
+    evid.append(ii['event_id'])
+    
+print ('begin stacking for each station')
+
+evelist = glob.glob(eqdir+'/*.a')
+nevent = len(evelist) 
+#irissta = pd.read_csv('./tables/IRISSTA0319.txt',names=('net','sta','lat','lon'),header=0,delim_whitespace=True,keep_default_na=False)
+
+samplevent = np.arange(0,nevent)
+if comp == 'BHT' or comp == 'BHR':
+    oricomp = 'BHE'
+else:
+    oricomp = comp
+
+start = time.ctime()
+if rank == 0:
+    print('starting time:',start)
+    if not os.path.isdir(tempdata):
+        os.makedirs(tempdata)
+ntime = int(np.ceil(float(nevent)/ncore))
+for ievent in range(ntime):
+    process_event(rank*ntime+ievent)
+#for ievent in samplevent:
+if rank==0:
+    print ('finishing',time.ctime())

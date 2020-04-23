@@ -9,15 +9,19 @@
 'align_b' : 10
 'align_a' : 30
 'datatype' : 'raw'
-#'datatype' : 'syngine_ak135f_1s'
 'mindist' : 25
 'maxdist' : 75
 'bins' : 1.0
-#'eqdir' : '../gloabl17y_mtz'
-'eqdir' : '../../Pauto/gloabl15y_mtz'
-'outfilename' : 'pcp_global_real15.h5'
+'eqdir' : '../cmb10_5.5to7.0_10'
+'outfilename' : 'pcp_global_real10snr.h5'
 'fwin' : 10
 'comp' : 'BHZ'
+'noise_a' : 3
+'noise_b' : 10
+'sig_a' : 15
+'sig_b' : 30
+'ncore' : 15
+'tempdata' : 'outputAllh5'
 
 # for constructing tt table
 'ndis' : 111
