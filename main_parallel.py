@@ -139,12 +139,12 @@ def process_event(ievent1):
                 npts = tr.stats.npts
                 tr.normalize() 
                 
-                oridata = tr.data
+                oridata = tr.data.copy()
                 noisea = int(noise_a*rsample)
                 noiseb = int(noise_b*rsample)
                 siga = int(sig_a*rsample)
                 sigb = int(sig_b*rsample)
-                snr = max(abs(tr.data[noisea:noiseb]))/(1e-6+max(abs(tr.data[siga:sigb])))
+                snr = max(abs(tr.data[siga:sigb]))/(1e-6+max(abs(tr.data[noisea:noiseb])))
                 if tdomain == 1:
                     #<<<<<<< HEAD:main_new.py
                     #tr = autocorr_td(tr,windowb,windowa,fwin)
